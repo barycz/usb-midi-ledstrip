@@ -7,11 +7,14 @@ USBMIDI midi;
 SPI ledStrip(/* mosi */P0_27, /* miso */P0_20, /* sclk */P0_24);
 
 const auto NumLeds = 60;
+const auto NumNoteKeys = 128; // 0-127 are the note pitches
+const auto LedToKeyOffset = 3*12; // skip 3 lower octaves
 const char startFrame[] = { 0x00, 0x00, 0x00, 0x00 };
 const char endFrame[] = { 0xff, 0xff, 0xff, 0xff };
 char pixels[NumLeds * 4];
 auto noteCounter = 0;
 bool noteHistory[NumLeds];
+uint8_t noteStatus[NumNoteKeys]; // 0 for not currently played notes, velocity otherwise
 auto midiClock = 0;
 
 void midiCallback(MIDIMessage msg)
@@ -20,11 +23,12 @@ void midiCallback(MIDIMessage msg)
 	{
 		case MIDIMessage::NoteOnType:
 			statusLeds[0] = 0;
-			noteHistory[0] = true;
+			noteStatus[msg.key()] = msg.velocity();
 			++noteCounter;
 			break;
 		case MIDIMessage::NoteOffType:
 			statusLeds[0] = 1;
+			noteStatus[msg.key()] = 0;
 			break;
 		case MIDIMessage::SysExType:
 			if (msg.data[1] == 0xf8)
@@ -36,27 +40,16 @@ void midiCallback(MIDIMessage msg)
 	}
 }
 
-void updateHistory()
-{
-	for (auto i = NumLeds - 1; i > 0; --i)
-	{
-		noteHistory[i] = noteHistory[i - 1];
-	}
-	noteHistory[0] = false;
-}
-
 int main(void)
 {
 	midi.attach(midiCallback);
 	ledStrip.frequency(512000);
 	statusLeds = -1;
-	memset(noteHistory, 0, sizeof(noteHistory));
 
 	while(1)
 	{
 		if (midiClock >= 6) // 24 per quater note
 		{
-			updateHistory();
 			midiClock = 0;
 		}
 
@@ -64,12 +57,14 @@ int main(void)
 		for (auto i = 0; i < NumLeds; i++)
 		{
 			auto* led = pixels + i * 4;
-			if (noteHistory[i])
+			static_assert(NumNoteKeys >= NumLeds + LedToKeyOffset, "indexing out of bounds");
+			const auto noteIndex = i + LedToKeyOffset;
+			if (noteStatus[noteIndex])
 			{
 				led[0] = 0xe0 + 0x10;
 				led[1] = 0;
 				led[2] = 0;
-				led[3] = 255;
+				led[3] = 2 * noteStatus[noteIndex];
 			}
 			else
 			{
