@@ -4,14 +4,16 @@
 namespace Voice {
 
 Voice::Voice()
-	: m_Key()
+	: m_Envelope(Envelope::ADSRGenerator::State::Release)
+	, m_Key()
 	, m_Velocity()
 {
 
 }
 
 Voice::Voice(TKey key, TVelocity velocity)
-	: m_Key(key)
+	: m_Envelope(Envelope::ADSRGenerator::State::Attack)
+	, m_Key(key)
 	, m_Velocity(velocity)
 {
 
@@ -19,14 +21,20 @@ Voice::Voice(TKey key, TVelocity velocity)
 
 void Voice::Update(Envelope::TTime dt)
 {
-	static const Envelope::ADSRGenerator::ADSR adsr = {0};
+	const Envelope::ADSRGenerator::ADSR adsr = {
+		100000,
+		100000,
+		1000000,
+		m_Velocity * EnvelopeValueScale,
+		m_Velocity * EnvelopeValueScale / 5,
+	};
 
 	m_Envelope.Update(dt, adsr);
 }
 
 Envelope::TValue Voice::GetValue() const
 {
-	return m_Envelope.GetValue();
+	return m_Envelope.GetValue() / EnvelopeValueScale;
 }
 
 TKey Voice::GetKey() const
@@ -55,28 +63,14 @@ void Stack::OnNoteOn(TKey key, TVelocity velocity)
 
 void Stack::OnNoteOff(TKey key)
 {
-	auto* const voice = GetByKey(key);
-
-	// might happen from time to time (like when we miss note on message)
-	if (voice == nullptr)
-	{
-		return;
-	}
-
-	voice->Release();
-}
-
-Voice* Stack::GetByKey(TKey key)
-{
 	for (auto& voice: m_Voices)
 	{
+		// release *all* matching voices
 		if (voice.GetKey() == key)
 		{
-			return &voice;
+			voice.Release();
 		}
 	}
-
-	return nullptr;
 }
 
 Voice& Stack::GetNextVoice()
@@ -84,6 +78,26 @@ Voice& Stack::GetNextVoice()
 	auto& ret = m_Voices[m_NextVoice];
 	m_NextVoice = (m_NextVoice + 1) % m_Voices.size();
 	return ret;
+}
+
+const Voice* Stack::begin() const
+{
+	return m_Voices.begin();
+}
+
+const Voice* Stack::end() const
+{
+	return m_Voices.end();
+}
+
+Voice* Stack::begin()
+{
+	return m_Voices.begin();
+}
+
+Voice* Stack::end()
+{
+	return m_Voices.end();
 }
 
 }

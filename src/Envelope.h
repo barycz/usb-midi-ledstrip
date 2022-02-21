@@ -19,11 +19,13 @@ public:
 	{
 		TTime Attack;
 		TTime Decay;
-		TValue Sustain;
 		TTime Release;
+
+		TValue Peak;
+		TValue Sustain;
 	};
 
-	ADSRGenerator();
+	ADSRGenerator(State state = State::Release);
 
 	void Update(TTime dt, ADSR adsr);
 	void Release();

@@ -23,6 +23,9 @@ public:
 	void Release();
 
 private:
+	// scale up values sent to the envelop to achieve better precision
+	static const auto EnvelopeValueScale = 100u;
+
 	Envelope::ADSRGenerator m_Envelope;
 	TKey m_Key;
 	TVelocity m_Velocity;
@@ -38,9 +41,13 @@ public:
 	void OnNoteOn(TKey key, TVelocity velocity);
 	void OnNoteOff(TKey key);
 
+	const Voice* begin() const;
+	const Voice* end() const;
+	Voice* begin();
+	Voice* end();
+
 private:
 	Voice& GetNextVoice();
-	Voice* GetByKey(TKey key);
 
 	std::array<Voice, Polyphony> m_Voices;
 	unsigned m_NextVoice = 0;
