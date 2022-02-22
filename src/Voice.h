@@ -34,7 +34,7 @@ private:
 class Stack
 {
 public:
-	static const auto Polyphony = 8u;
+	static const auto Polyphony = 16u;
 
 	void Update(Envelope::TTime dt);
 
@@ -47,7 +47,8 @@ public:
 	Voice* end();
 
 private:
-	Voice& GetNextVoice();
+	Voice& GetNextVoice(TKey key);
+	Voice* GetVoiceByKey(TKey key);
 
 	std::array<Voice, Polyphony> m_Voices;
 	unsigned m_NextVoice = 0;

@@ -18,6 +18,7 @@ TPixels pixels;
 auto noteCounter = 0;
 Voice::Stack voiceStack;
 auto midiClock = 0u;
+auto modWheel = 0u;
 
 void midiCallback(MIDIMessage msg)
 {
@@ -31,6 +32,12 @@ void midiCallback(MIDIMessage msg)
 		case MIDIMessage::NoteOffType:
 			statusLeds[0] = 1;
 			voiceStack.OnNoteOff(msg.key());
+			break;
+		case MIDIMessage::ControlChangeType:
+			if (msg.controller() == 1)
+			{
+				modWheel = msg.value();
+			}
 			break;
 		case MIDIMessage::SysExType:
 			if (msg.data[1] == 0xf8)
@@ -48,8 +55,8 @@ void Gradient(TPixels& pixels)
 	{
 		auto* led = pixels + i * 4;
 		led[0] = 0xe0 + 0x01;
-		led[1] = 255 * i / (NumLeds - 1);
-		led[2] = 255 - led[1];
+		led[1] = (255 * i / (NumLeds - 1)) * modWheel / 128;
+		led[2] = (255 - led[1]) * modWheel / 128;
 		led[3] = 0;
 	}
 }
@@ -71,10 +78,8 @@ void VoicesToLeds(const Voice::Stack& voices, TPixels& pixels)
 		}
 
 		auto* led = pixels + ledId * 4;
-		led[0] = 0xe0 + 0x10;
-		led[1] = 0;
-		led[2] = 0;
-		led[3] = voiceValue * 2; // scale 128 midi velicities
+		led[0] = 0xe0 + 0x01 + voiceValue / 8;
+		led[3] = 255;
 	}
 }
 

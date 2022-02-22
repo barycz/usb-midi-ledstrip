@@ -21,12 +21,13 @@ Voice::Voice(TKey key, TVelocity velocity)
 
 void Voice::Update(Envelope::TTime dt)
 {
+	const auto scaledVelocity = 64 + m_Velocity / 2;
 	const Envelope::ADSRGenerator::ADSR adsr = {
-		100000,
-		100000,
+		50000,
+		50000,
 		1000000,
-		m_Velocity * EnvelopeValueScale,
-		m_Velocity * EnvelopeValueScale / 5,
+		scaledVelocity * EnvelopeValueScale,
+		scaledVelocity * EnvelopeValueScale / 5,
 	};
 
 	m_Envelope.Update(dt, adsr);
@@ -57,24 +58,40 @@ void Stack::Update(Envelope::TTime dt)
 
 void Stack::OnNoteOn(TKey key, TVelocity velocity)
 {
-	auto& voice = GetNextVoice();
+	auto& voice = GetNextVoice(key);
 	voice = Voice(key, velocity);
 }
 
 void Stack::OnNoteOff(TKey key)
 {
-	for (auto& voice: m_Voices)
+	auto* voice = GetVoiceByKey(key);
+	if (voice)
 	{
-		// release *all* matching voices
-		if (voice.GetKey() == key)
-		{
-			voice.Release();
-		}
+		voice->Release();
 	}
 }
 
-Voice& Stack::GetNextVoice()
+Voice* Stack::GetVoiceByKey(TKey key)
 {
+	for (auto& voice: m_Voices)
+	{
+		if (voice.GetKey() == key)
+		{
+			return &voice;
+		}
+	}
+
+	return nullptr;
+}
+
+Voice& Stack::GetNextVoice(TKey key)
+{
+	auto* recycledVoice = GetVoiceByKey(key);
+	if (recycledVoice)
+	{
+		return *recycledVoice;
+	}
+
 	auto& ret = m_Voices[m_NextVoice];
 	m_NextVoice = (m_NextVoice + 1) % m_Voices.size();
 	return ret;
